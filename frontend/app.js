@@ -4,6 +4,8 @@ let authToken = localStorage.getItem('authToken');
 let currentSessionId = null;
 let currentReportId = null;
 let currentMode = localStorage.getItem('currentMode') || null; // 'simple' or 'detailed'
+let currentCompanyId = null; // 取得した企業情報のIDを保持
+let currentCompanyInfo = null; // 取得した企業情報の内容を保存
 
 // ページロード時の処理
 window.onload = function() {
@@ -38,6 +40,23 @@ function selectMode(mode) {
     
     currentMode = mode;
     localStorage.setItem('currentMode', mode);
+
+    // 詳細診断モードで保持していた企業情報をリセット
+    if (mode === 'simple') {
+        currentCompanyId = null;
+        currentCompanyInfo = null;
+
+        const companySummary = document.getElementById('companySummary');
+        if (companySummary) {
+            companySummary.remove();
+        }
+
+        const companyInfoResult = document.getElementById('companyInfoResult');
+        if (companyInfoResult) {
+            companyInfoResult.style.display = 'none';
+            companyInfoResult.innerHTML = '';
+        }
+    }
     
     if (mode === 'simple') {
         // 簡易診断モードの最初のステップへ
@@ -70,6 +89,8 @@ function returnToModeSelection() {
     currentMode = null;
     currentSessionId = null;
     currentReportId = null;
+    currentCompanyId = null;
+    currentCompanyInfo = null;
     
     localStorage.removeItem('currentMode');
     
@@ -370,9 +391,6 @@ async function startDiagnosis() {
     }
 }
 
-// 企業情報を取得（詳細診断モード用）
-let currentCompanyId = null; // 取得した企業情報のIDを保持
-
 async function fetchCompanyInfo() {
     if (!authToken) {
         alert('ログインしてください');
@@ -614,7 +632,7 @@ async function startDetailedDiagnosis() {
             }
             
             // チャット画面に企業情報を保存（表示用）
-            window.currentCompanyInfo = companyData;
+            currentCompanyInfo = companyData;
             
             // 直接チャット画面へ遷移
             showStep(3);
