@@ -18,6 +18,33 @@ def score_conversation(session, conversation_history):
         role_name = "営業担当者" if msg.role == 'salesperson' else "顧客"
         conversation_text += f"{role_name}: {msg.message}\n"
     
+    # 企業情報を取得（詳細診断モードの場合）
+    company_info_text = ""
+    if session.company:
+        company = session.company
+        company_lines = []
+        company_lines.append(f"企業名: {company.company_name}")
+        if company.industry:
+            company_lines.append(f"業界: {company.industry}")
+        if company.business_description:
+            company_lines.append(f"事業内容: {company.business_description}")
+        if company.location:
+            company_lines.append(f"所在地: {company.location}")
+        if company.employee_count:
+            company_lines.append(f"従業員数: {company.employee_count}")
+        if company.established_year:
+            company_lines.append(f"設立年: {company.established_year}")
+        company_info_text = "\n".join(company_lines)
+    
+    # 企業情報セクションを準備（f-stringの制限を回避するため）
+    company_info_section = ""
+    company_info_note = ""
+    if company_info_text:
+        # f-string内でバックスラッシュを使わないようにする
+        newline = "\n"
+        company_info_section = f'--- 企業情報（実際の顧客企業の情報） ---{newline}{company_info_text}{newline}---'
+        company_info_note = '上記の企業情報を参考に、営業担当者が実際の企業情報に基づいた適切な質問をしているかを評価してください。'
+    
     prompt = f"""あなたは営業スキル評価の専門家です。以下の会話履歴を分析し、SPIN思考に基づいてスコアリングを行ってください。
 
 セッション情報:
@@ -25,6 +52,9 @@ def score_conversation(session, conversation_history):
 - 価値提案: {session.value_proposition}
 - 顧客像: {session.customer_persona or '未設定'}
 注意: 顧客の課題は事前に設定されていません。営業担当者が会話を通じて顧客の課題を聞き出すことが重要です。
+
+{company_info_section}
+注意: {company_info_note}
 
 会話履歴:
 {conversation_text}

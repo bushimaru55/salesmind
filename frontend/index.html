@@ -71,7 +71,7 @@
             </section>
 
             <!-- ステップ1: 提案予定の企業情報（簡易診断モード用） -->
-            <section id="step1" class="step-section" style="display: none;">
+            <section id="step1-simple" class="step-section" style="display: none;">
                 <div class="step-header">
                     <h2>提案予定の企業情報</h2>
                     <button onclick="returnToModeSelection()" class="btn-back-to-mode">← モード選択に戻る</button>
@@ -94,6 +94,34 @@
                 <button onclick="startDiagnosis()" class="btn-primary">診断開始</button>
                 <div id="diagnosisStartResult" class="result-box" style="display: none;">
                     <!-- ローディングやエラーメッセージがここに表示される -->
+                </div>
+            </section>
+
+            <!-- ステップ1: 企業情報取得（詳細診断モード用） -->
+            <section id="step1-detailed" class="step-section" style="display: none;">
+                <div class="step-header">
+                    <h2>提案予定の企業情報</h2>
+                    <button onclick="returnToModeSelection()" class="btn-back-to-mode">← モード選択に戻る</button>
+                </div>
+                <div class="info-box">
+                    <p>企業URLから企業情報を取得して、より実践的な診断を行います。</p>
+                </div>
+                <div class="form-group">
+                    <label>企業URL *</label>
+                    <input type="url" id="company_url" placeholder="例: https://example.com" required>
+                    <small class="form-help">企業の公式サイトや会社概要ページのURLを入力してください</small>
+                </div>
+                <div class="form-group">
+                    <label>価値提案 *</label>
+                    <input type="text" id="detailed_value_proposition" placeholder="例: クラウド導入支援サービス" required>
+                </div>
+                <div class="form-group">
+                    <label>顧客像（オプション）</label>
+                    <input type="text" id="detailed_customer_persona" placeholder="例: 中堅IT企業のCTO" value="">
+                </div>
+                <button onclick="fetchCompanyInfo()" class="btn-primary">企業情報を取得</button>
+                <div id="companyInfoResult" class="result-box" style="display: none;">
+                    <!-- 企業情報がここに表示される -->
                 </div>
             </section>
 

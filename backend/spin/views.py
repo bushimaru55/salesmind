@@ -176,11 +176,12 @@ def generate_spin(request):
 @permission_classes([IsAuthenticated])
 def start_session(request):
     """セッションを開始するエンドポイント"""
-    serializer = SessionSerializer(data=request.data)
+    serializer = SessionSerializer(data=request.data, context={'request': request})
     if serializer.is_valid():
         session = serializer.save(user=request.user, status='active')
         logger.info(f"Session started: {session.id} by user {request.user.username}")
         return Response(SessionSerializer(session).data, status=status.HTTP_201_CREATED)
+    logger.warning(f"Session start validation failed: {serializer.errors}")
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 

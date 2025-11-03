@@ -20,10 +20,9 @@ function initMode() {
     // 既にモードが選択されている場合は、そのモードの最初のステップを表示
     if (currentMode) {
         if (currentMode === 'simple') {
-            showStep(1); // 簡易診断モードのステップ1
+            showStep('step1-simple'); // 簡易診断モードのステップ1
         } else if (currentMode === 'detailed') {
-            showStep(1); // 詳細診断モードのステップ1（後で実装）
-            // 詳細診断モードのステップ1は企業情報取得になるので、後で実装
+            showStep('step1-detailed'); // 詳細診断モードのステップ1（企業情報取得）
         }
     } else {
         // モード未選択の場合は、モード選択画面を表示
@@ -42,12 +41,10 @@ function selectMode(mode) {
     
     if (mode === 'simple') {
         // 簡易診断モードの最初のステップへ
-        showStep(1);
+        showStep('step1-simple');
     } else if (mode === 'detailed') {
-        // 詳細診断モードの最初のステップへ（後で実装）
-        showStep(1); // 暫定的にステップ1を表示（後で詳細診断モード専用ステップに変更）
-        alert('詳細診断モードは現在開発中です。簡易診断モードをご利用ください。');
-        // TODO: 詳細診断モードのステップ1（企業情報取得）を実装
+        // 詳細診断モードの最初のステップへ（企業情報取得）
+        showStep('step1-detailed');
     }
 }
 
@@ -265,7 +262,7 @@ function logout() {
     resetToStep1();
 }
 
-// 診断開始（セッション開始＋チャット画面へ直接遷移）
+// 診断開始（簡易診断モード用：セッション開始＋チャット画面へ直接遷移）
 async function startDiagnosis() {
     if (!authToken) {
         alert('ログインしてください');
@@ -277,7 +274,7 @@ async function startDiagnosis() {
     const customer_persona = document.getElementById('customer_persona').value.trim();
     
     if (window.logger) {
-        window.logger.info('診断開始', { industry, value_proposition, customer_persona });
+        window.logger.info('診断開始（簡易診断モード）', { industry, value_proposition, customer_persona });
     }
     
     if (!industry || !value_proposition) {
@@ -310,6 +307,7 @@ async function startDiagnosis() {
         
         if (response.ok) {
             currentSessionId = data.id;
+            currentCompanyId = null; // 簡易診断モードでは企業情報なし
             
             if (window.logger) {
                 window.logger.info('セッション開始成功、チャット画面へ遷移', { sessionId: currentSessionId });
@@ -330,6 +328,265 @@ async function startDiagnosis() {
             window.logger.error('診断開始エラー', { message: error.message, stack: error.stack, errorType: error.name });
         }
         showError('diagnosisStartResult', errorMsg);
+    }
+}
+
+// 企業情報を取得（詳細診断モード用）
+let currentCompanyId = null; // 取得した企業情報のIDを保持
+
+async function fetchCompanyInfo() {
+    if (!authToken) {
+        alert('ログインしてください');
+        return;
+    }
+    
+    const company_url = document.getElementById('company_url').value.trim();
+    const value_proposition = document.getElementById('detailed_value_proposition').value.trim();
+    
+    if (window.logger) {
+        window.logger.info('企業情報取得を開始', { company_url, value_proposition });
+    }
+    
+    if (!company_url || !value_proposition) {
+        if (window.logger) {
+            window.logger.warning('企業情報取得: 必須項目が不足しています', { company_url, value_proposition });
+        }
+        alert('企業URLと価値提案は必須です');
+        return;
+    }
+    
+    // URL形式の簡易チェック
+    try {
+        new URL(company_url);
+    } catch (e) {
+        alert('有効なURLを入力してください');
+        return;
+    }
+    
+    showLoading('companyInfoResult');
+    
+    try {
+        const response = await fetch(`${API_BASE_URL}/company/scrape/`, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Token ${authToken}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                url: company_url,
+                value_proposition: value_proposition
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (response.ok) {
+            currentCompanyId = data.id;
+            
+            if (window.logger) {
+                window.logger.info('企業情報取得成功', { companyId: currentCompanyId });
+            }
+            
+            // 企業情報を表示
+            displayCompanyInfo(data);
+        } else {
+            let errorMessage = '企業情報の取得に失敗しました: ';
+            if (response.status === 401) {
+                errorMessage = '認証エラーが発生しました。再度ログインしてください。';
+                // トークンをクリア
+                authToken = null;
+                localStorage.removeItem('authToken');
+                // ログイン画面に戻る
+                setTimeout(() => {
+                    alert('セッションが期限切れです。再度ログインしてください。');
+                    document.getElementById('loginForm').style.display = 'block';
+                    document.getElementById('userInfo').style.display = 'none';
+                    showStep(0);
+                }, 1000);
+            } else if (data.detail) {
+                errorMessage += data.detail;
+            } else if (data.message) {
+                errorMessage += data.message;
+            } else if (data.error) {
+                errorMessage += data.error;
+            } else if (typeof data === 'object' && Object.keys(data).length > 0) {
+                errorMessage += JSON.stringify(data);
+            } else {
+                errorMessage += '不明なエラー';
+            }
+            if (window.logger) {
+                window.logger.error('企業情報取得エラー詳細', { status: response.status, data });
+            }
+            showError('companyInfoResult', errorMessage);
+        }
+    } catch (error) {
+        let errorMsg = 'エラーが発生しました: ' + error.message;
+        if (error.message.includes('Failed to fetch') || error.name === 'TypeError') {
+            errorMsg = 'サーバーに接続できませんでした。\nバックエンドサーバー（http://localhost:8000）が起動しているか確認してください。';
+        }
+        if (window.logger) {
+            window.logger.error('企業情報取得エラー', { message: error.message, stack: error.stack, errorType: error.name });
+        }
+        showError('companyInfoResult', errorMsg);
+    }
+}
+
+// 企業情報を表示
+function displayCompanyInfo(companyData) {
+    const resultElement = document.getElementById('companyInfoResult');
+    if (!resultElement) {
+        if (window.logger) {
+            window.logger.error('companyInfoResult要素が見つかりません');
+        }
+        return;
+    }
+    
+    // ローディングをクリア
+    const loadingElement = resultElement.querySelector('.loading');
+    if (loadingElement) {
+        loadingElement.remove();
+    }
+    
+    const companyInfoHtml = `
+        <h3>企業情報を取得しました</h3>
+        <div class="company-info-display">
+            <div class="company-info-item">
+                <strong>企業名:</strong> ${escapeHtml(companyData.company_name || '未設定')}
+            </div>
+            ${companyData.industry ? `
+            <div class="company-info-item">
+                <strong>業界:</strong> ${escapeHtml(companyData.industry)}
+            </div>
+            ` : ''}
+            ${companyData.business_description ? `
+            <div class="company-info-item">
+                <strong>事業内容:</strong> ${escapeHtml(companyData.business_description)}
+            </div>
+            ` : ''}
+            ${companyData.location ? `
+            <div class="company-info-item">
+                <strong>所在地:</strong> ${escapeHtml(companyData.location)}
+            </div>
+            ` : ''}
+            ${companyData.employee_count ? `
+            <div class="company-info-item">
+                <strong>従業員数:</strong> ${escapeHtml(companyData.employee_count)}
+            </div>
+            ` : ''}
+            ${companyData.established_year ? `
+            <div class="company-info-item">
+                <strong>設立年:</strong> ${escapeHtml(String(companyData.established_year))}
+            </div>
+            ` : ''}
+        </div>
+        <button onclick="startDetailedDiagnosis()" class="btn-primary">診断開始</button>
+    `;
+    
+    resultElement.innerHTML = companyInfoHtml;
+    resultElement.style.display = 'block';
+}
+
+// 詳細診断開始（企業情報をセッションに紐付けてチャット開始）
+async function startDetailedDiagnosis() {
+    if (!authToken) {
+        alert('ログインしてください');
+        return;
+    }
+    
+    if (!currentCompanyId) {
+        alert('企業情報が取得されていません');
+        return;
+    }
+    
+    const company_url = document.getElementById('company_url').value.trim();
+    const value_proposition = document.getElementById('detailed_value_proposition').value.trim();
+    const customer_persona = document.getElementById('detailed_customer_persona').value.trim();
+    
+    // 企業情報を取得
+    let companyData = null;
+    try {
+        // スクレイピング済みの企業情報を取得（セッション作成時に使用）
+        // ここではセッション作成時にcompany_idを指定するだけでOK
+        companyData = { id: currentCompanyId };
+    } catch (error) {
+        if (window.logger) {
+            window.logger.error('企業情報取得エラー', { error });
+        }
+        alert('企業情報の取得に失敗しました');
+        return;
+    }
+    
+    if (window.logger) {
+        window.logger.info('詳細診断開始', { companyId: currentCompanyId, value_proposition, customer_persona });
+    }
+    
+    // スクレイピング時に業界情報も取得できているはずなので、企業情報から業界を取得
+    // セッション開始時にcompany_idを指定してセッションを作成
+    // セッション開始APIを確認して、company_idを指定できるか確認する必要がある
+    
+    showLoading('companyInfoResult');
+    
+    try {
+        // セッションを開始（企業情報を紐付け）
+        const response = await fetch(`${API_BASE_URL}/session/start/`, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Token ${authToken}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                // company_idがある場合は業界は不要（企業情報から取得される）
+                // industry: '', // company_idがある場合は送らない
+                value_proposition: value_proposition,
+                customer_persona: customer_persona || undefined,
+                customer_pain: null,
+                company_id: currentCompanyId // 企業情報のID
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (response.ok) {
+            currentSessionId = data.id;
+            
+            if (window.logger) {
+                window.logger.info('詳細診断セッション開始成功、チャット画面へ遷移', { sessionId: currentSessionId, companyId: currentCompanyId });
+            }
+            
+            // チャット画面に企業情報を保存（表示用）
+            window.currentCompanyInfo = companyData;
+            
+            // 直接チャット画面へ遷移
+            showStep(3);
+            loadChatHistory();
+        } else {
+            // エラーレスポンスの詳細を表示
+            let errorMessage = 'セッション開始に失敗しました: ';
+            if (data.industry) {
+                errorMessage += data.industry[0] || '';
+            } else if (data.value_proposition) {
+                errorMessage += data.value_proposition[0] || '';
+            } else if (data.company_id) {
+                errorMessage += data.company_id[0] || '';
+            } else if (typeof data === 'object' && Object.keys(data).length > 0) {
+                errorMessage += JSON.stringify(data);
+            } else {
+                errorMessage += data.message || data.error || '不明なエラー';
+            }
+            if (window.logger) {
+                window.logger.error('セッション開始エラー詳細', { status: response.status, data });
+            }
+            showError('companyInfoResult', errorMessage);
+        }
+    } catch (error) {
+        let errorMsg = 'エラーが発生しました: ' + error.message;
+        if (error.message.includes('Failed to fetch') || error.name === 'TypeError') {
+            errorMsg = 'サーバーに接続できませんでした。\nバックエンドサーバー（http://localhost:8000）が起動しているか確認してください。';
+        }
+        if (window.logger) {
+            window.logger.error('詳細診断開始エラー', { message: error.message, stack: error.stack, errorType: error.name });
+        }
+        showError('companyInfoResult', errorMsg);
     }
 }
 
@@ -859,11 +1116,91 @@ async function loadChatHistory() {
         
         const data = await response.json();
         
-        if (response.ok && data.messages) {
-            updateChatMessages(data.messages);
+        if (response.ok) {
+            // 企業情報がある場合は表示（詳細診断モード）
+            if (data.company) {
+                displayCompanySummary(data.company);
+            }
+            
+            // メッセージがある場合は表示
+            if (data.messages) {
+                updateChatMessages(data.messages);
+            }
         }
     } catch (error) {
         console.error('チャット履歴の読み込みに失敗:', error);
+        if (window.logger) {
+            window.logger.error('チャット履歴読み込みエラー', { error });
+        }
+    }
+}
+
+// 企業概要をチャット画面の上部に表示
+function displayCompanySummary(companyData) {
+    const chatContainer = document.querySelector('.chat-container');
+    if (!chatContainer) {
+        if (window.logger) {
+            window.logger.warning('chat-container要素が見つかりません');
+        }
+        return;
+    }
+    
+    // 既存の企業概要表示を削除
+    const existingSummary = document.getElementById('companySummary');
+    if (existingSummary) {
+        existingSummary.remove();
+    }
+    
+    // 企業概要表示エリアを作成
+    const summaryDiv = document.createElement('div');
+    summaryDiv.id = 'companySummary';
+    summaryDiv.className = 'company-summary';
+    
+    const summaryHTML = `
+        <div class="company-summary-header">
+            <h3>📋 企業概要</h3>
+        </div>
+        <div class="company-summary-content">
+            <div class="company-summary-item">
+                <strong>企業名:</strong> ${escapeHtml(companyData.company_name || '未設定')}
+            </div>
+            ${companyData.industry ? `
+            <div class="company-summary-item">
+                <strong>業界:</strong> ${escapeHtml(companyData.industry)}
+            </div>
+            ` : ''}
+            ${companyData.business_description ? `
+            <div class="company-summary-item">
+                <strong>事業内容:</strong> ${escapeHtml(companyData.business_description)}
+            </div>
+            ` : ''}
+            ${companyData.location ? `
+            <div class="company-summary-item">
+                <strong>所在地:</strong> ${escapeHtml(companyData.location)}
+            </div>
+            ` : ''}
+            ${companyData.employee_count ? `
+            <div class="company-summary-item">
+                <strong>従業員数:</strong> ${escapeHtml(companyData.employee_count)}
+            </div>
+            ` : ''}
+            ${companyData.established_year ? `
+            <div class="company-summary-item">
+                <strong>設立年:</strong> ${escapeHtml(String(companyData.established_year))}
+            </div>
+            ` : ''}
+        </div>
+    `;
+    
+    summaryDiv.innerHTML = summaryHTML;
+    
+    // チャットコンテナの最初に挿入（chatMessagesの前）
+    const chatMessages = document.getElementById('chatMessages');
+    if (chatMessages && chatMessages.parentNode) {
+        chatMessages.parentNode.insertBefore(summaryDiv, chatMessages);
+    } else {
+        // chatMessagesが見つからない場合は、chat-containerの最初に挿入
+        chatContainer.insertBefore(summaryDiv, chatContainer.firstChild);
     }
 }
 
@@ -1156,10 +1493,10 @@ function resetToStep1() {
     
     // モードが選択されている場合は、そのモードの最初のステップに戻る
     if (currentMode === 'simple') {
-        showStep(1);
+        showStep('step1-simple');
     } else if (currentMode === 'detailed') {
-        // 詳細診断モードの最初のステップ（後で実装）
-        showStep(1); // 暫定的にステップ1を表示
+        // 詳細診断モードの最初のステップ（企業情報取得）
+        showStep('step1-detailed');
     }
     
     const spinResult = document.getElementById('spinQuestionsResult');

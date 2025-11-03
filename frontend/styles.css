@@ -394,6 +394,75 @@ body {
     margin: 0 auto;
 }
 
+/* 企業概要表示（チャット画面の上部） */
+.company-summary {
+    background: #f0f7ff;
+    border: 2px solid #667eea;
+    border-radius: 8px;
+    padding: 20px;
+    margin-bottom: 20px;
+}
+
+.company-summary-header {
+    margin-bottom: 15px;
+}
+
+.company-summary-header h3 {
+    color: #667eea;
+    font-size: 1.2em;
+    margin: 0;
+    padding-bottom: 10px;
+    border-bottom: 2px solid #667eea;
+}
+
+.company-summary-content {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.company-summary-item {
+    color: #333;
+    font-size: 0.95em;
+    line-height: 1.6;
+}
+
+.company-summary-item strong {
+    color: #555;
+    margin-right: 8px;
+}
+
+/* 企業情報表示（詳細診断モードのステップ1） */
+.company-info-display {
+    background: #f9f9f9;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    padding: 20px;
+    margin: 20px 0;
+}
+
+.company-info-item {
+    margin-bottom: 10px;
+    padding: 8px 0;
+    border-bottom: 1px solid #eee;
+}
+
+.company-info-item:last-child {
+    border-bottom: none;
+}
+
+.company-info-item strong {
+    color: #667eea;
+    margin-right: 10px;
+}
+
+.form-help {
+    display: block;
+    font-size: 0.85em;
+    color: #666;
+    margin-top: 5px;
+}
+
 .chat-messages {
     height: 500px;
     overflow-y: auto;
