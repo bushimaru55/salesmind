@@ -77,6 +77,8 @@ class Session(models.Model):
     customer_pain = models.TextField(null=True, blank=True)
     company = models.ForeignKey(Company, on_delete=models.SET_NULL, null=True, blank=True, related_name='sessions', help_text="企業情報との関連付け")
     company_analysis = models.ForeignKey(CompanyAnalysis, on_delete=models.SET_NULL, null=True, blank=True, related_name='sessions', help_text="分析結果との関連付け")
+    success_probability = models.IntegerField(default=50, help_text="現在の商談成功率 (0-100%)")
+    last_analysis_reason = models.TextField(null=True, blank=True, help_text="直近の成功率変動理由")
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
     started_at = models.DateTimeField(auto_now_add=True)
     finished_at = models.DateTimeField(null=True, blank=True)
@@ -101,6 +103,8 @@ class ChatMessage(models.Model):
     role = models.CharField(max_length=20, choices=ROLE_CHOICES)
     message = models.TextField()
     sequence = models.PositiveIntegerField()
+    success_delta = models.IntegerField(null=True, blank=True, help_text="この発言による成功率変動")
+    analysis_summary = models.TextField(null=True, blank=True, help_text="成功率分析の概要")
     created_at = models.DateTimeField(auto_now_add=True)
     
     class Meta:

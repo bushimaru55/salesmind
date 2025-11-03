@@ -66,8 +66,8 @@ class SessionSerializer(serializers.ModelSerializer):
         model = Session
         fields = ['id', 'user', 'mode', 'industry', 'value_proposition', 'customer_persona', 
                   'customer_pain', 'status', 'started_at', 'finished_at', 'created_at',
-                  'company_id', 'company', 'company_analysis']
-        read_only_fields = ['id', 'user', 'status', 'started_at', 'finished_at', 'created_at', 'company', 'company_analysis']
+                  'company_id', 'company', 'company_analysis', 'success_probability', 'last_analysis_reason']
+        read_only_fields = ['id', 'user', 'status', 'started_at', 'finished_at', 'created_at', 'company', 'company_analysis', 'success_probability', 'last_analysis_reason']
     
     def validate_industry(self, value):
         """業界のバリデーション（企業情報がある場合は空でもOK）"""

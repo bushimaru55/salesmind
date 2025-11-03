@@ -432,6 +432,121 @@ body {
     margin-right: 8px;
 }
 
+/* 商談成功率パネル（詳細診断モード用） */
+.success-meter {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border: 2px solid #667eea;
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 20px;
+    color: white;
+    box-shadow: 0 4px 6px rgba(102, 126, 234, 0.3);
+}
+
+.success-meter-header {
+    margin-bottom: 15px;
+}
+
+.success-meter-header h3 {
+    color: white;
+    font-size: 1.2em;
+    margin: 0;
+    padding-bottom: 10px;
+    border-bottom: 2px solid rgba(255, 255, 255, 0.3);
+}
+
+.success-meter-content {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.success-probability-display {
+    display: flex;
+    align-items: baseline;
+    gap: 5px;
+    margin-bottom: 10px;
+}
+
+.success-probability-value {
+    font-size: 3em;
+    font-weight: bold;
+    color: white;
+    line-height: 1;
+}
+
+.success-probability-unit {
+    font-size: 1.5em;
+    color: rgba(255, 255, 255, 0.9);
+    margin-left: 5px;
+}
+
+.success-delta-display {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    padding: 8px 15px;
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 6px;
+    animation: slideIn 0.3s ease-out;
+}
+
+.success-delta-value {
+    font-size: 1.5em;
+    font-weight: bold;
+}
+
+.success-delta-value.positive {
+    color: #4ade80;
+}
+
+.success-delta-value.negative {
+    color: #f87171;
+}
+
+.success-delta-unit {
+    font-size: 1em;
+    color: rgba(255, 255, 255, 0.9);
+}
+
+.success-reason-display {
+    padding: 10px;
+    background: rgba(255, 255, 255, 0.15);
+    border-radius: 6px;
+    margin-top: 5px;
+}
+
+.success-reason-text {
+    color: white;
+    font-size: 0.95em;
+    line-height: 1.6;
+    margin: 0;
+}
+
+@keyframes slideIn {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes pulse {
+    0%, 100% {
+        transform: scale(1);
+    }
+    50% {
+        transform: scale(1.05);
+    }
+}
+
+.success-probability-value.updating {
+    animation: pulse 0.5s ease-in-out;
+}
+
 /* 企業情報表示（詳細診断モードのステップ1） */
 .company-info-display {
     background: #f9f9f9;

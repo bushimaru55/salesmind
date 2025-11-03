@@ -137,6 +137,29 @@
                     <button onclick="returnToModeSelection()" class="btn-back-to-mode">← モード選択に戻る</button>
                 </div>
                 <div class="chat-container">
+                    <!-- 企業概要がここに表示される（詳細診断モード用） -->
+                    <div id="companySummary" class="company-summary" style="display: none;"></div>
+                    
+                    <!-- 商談成功率パネル（詳細診断モード用） -->
+                    <div id="successMeter" class="success-meter" style="display: none;">
+                        <div class="success-meter-header">
+                            <h3>📊 商談成功率</h3>
+                        </div>
+                        <div class="success-meter-content">
+                            <div class="success-probability-display">
+                                <span class="success-probability-value" id="successProbabilityValue">50</span>
+                                <span class="success-probability-unit">%</span>
+                            </div>
+                            <div class="success-delta-display" id="successDeltaDisplay" style="display: none;">
+                                <span class="success-delta-value" id="successDeltaValue">+0</span>
+                                <span class="success-delta-unit">%</span>
+                            </div>
+                            <div class="success-reason-display" id="successReasonDisplay" style="display: none;">
+                                <p class="success-reason-text" id="successReasonText"></p>
+                            </div>
+                        </div>
+                    </div>
+                    
                     <div id="chatMessages" class="chat-messages">
                         <!-- メッセージがここに表示される -->
                     </div>

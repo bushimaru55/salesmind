@@ -1132,6 +1132,20 @@ async function sendChatMessage() {
         if (response.ok) {
             // 会話履歴を更新
             updateChatMessages(data.conversation);
+            
+            // 詳細診断モードの場合、成功率情報を更新
+            if (currentMode === 'detailed' && data.success_probability !== undefined) {
+                updateSuccessProbability(data.success_probability, data.success_delta, data.analysis_reason);
+                
+                // ログに記録
+                if (window.logger) {
+                    window.logger.info('成功率更新', {
+                        success_probability: data.success_probability,
+                        success_delta: data.success_delta,
+                        analysis_reason: data.analysis_reason
+                    });
+                }
+            }
         } else {
             showChatError('メッセージ送信に失敗しました: ' + (data.message || data.error));
         }
@@ -1198,6 +1212,17 @@ async function loadChatHistory() {
             // 企業情報がある場合は表示（詳細診断モード）
             if (data.company) {
                 displayCompanySummary(data.company);
+            }
+            
+            // 詳細診断モードの場合、成功率パネルを表示
+            if (currentMode === 'detailed') {
+                showSuccessMeter();
+                // 初期成功率を表示（セッションの成功率）
+                const initialProbability = data.success_probability !== undefined ? data.success_probability : 50;
+                updateSuccessProbability(initialProbability, 0, null);
+            } else {
+                // 簡易診断モードの場合は非表示
+                hideSuccessMeter();
             }
             
             // メッセージがある場合は表示
@@ -1279,6 +1304,62 @@ function displayCompanySummary(companyData) {
     } else {
         // chatMessagesが見つからない場合は、chat-containerの最初に挿入
         chatContainer.insertBefore(summaryDiv, chatContainer.firstChild);
+    }
+}
+
+// 成功率パネルを表示
+function showSuccessMeter() {
+    const successMeter = document.getElementById('successMeter');
+    if (successMeter) {
+        successMeter.style.display = 'block';
+    }
+}
+
+// 成功率パネルを非表示
+function hideSuccessMeter() {
+    const successMeter = document.getElementById('successMeter');
+    if (successMeter) {
+        successMeter.style.display = 'none';
+    }
+}
+
+// 成功率を更新
+function updateSuccessProbability(probability, delta, reason) {
+    const probabilityValue = document.getElementById('successProbabilityValue');
+    const deltaDisplay = document.getElementById('successDeltaDisplay');
+    const deltaValue = document.getElementById('successDeltaValue');
+    const reasonDisplay = document.getElementById('successReasonDisplay');
+    const reasonText = document.getElementById('successReasonText');
+    
+    if (probabilityValue) {
+        // アニメーションを追加
+        probabilityValue.classList.add('updating');
+        setTimeout(() => {
+            probabilityValue.textContent = probability;
+            probabilityValue.classList.remove('updating');
+        }, 100);
+    }
+    
+    // 変動量を表示
+    if (deltaDisplay && deltaValue && delta !== 0) {
+        deltaDisplay.style.display = 'flex';
+        deltaValue.textContent = (delta > 0 ? '+' : '') + delta;
+        deltaValue.className = 'success-delta-value ' + (delta > 0 ? 'positive' : 'negative');
+        
+        // 3秒後に非表示
+        setTimeout(() => {
+            deltaDisplay.style.display = 'none';
+        }, 3000);
+    } else if (deltaDisplay && delta === 0) {
+        deltaDisplay.style.display = 'none';
+    }
+    
+    // 変動理由を表示
+    if (reasonDisplay && reasonText && reason) {
+        reasonDisplay.style.display = 'block';
+        reasonText.textContent = reason;
+    } else if (reasonDisplay && !reason) {
+        reasonDisplay.style.display = 'none';
     }
 }
 

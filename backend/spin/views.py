@@ -27,6 +27,7 @@ from .services.scoring import score_conversation
 from .services.scraper import scrape_company_info, scrape_multiple_urls
 from .services.sitemap_parser import parse_sitemap_from_file, parse_sitemap_from_url, parse_sitemap_index
 from .services.company_analyzer import analyze_spin_suitability
+from .services.conversation_analysis import analyze_sales_message
 from .exceptions import OpenAIAPIError, SessionNotFoundError, SessionFinishedError, NoConversationHistoryError
 
 logger = logging.getLogger(__name__)
@@ -179,6 +180,13 @@ def start_session(request):
     serializer = SessionSerializer(data=request.data, context={'request': request})
     if serializer.is_valid():
         session = serializer.save(user=request.user, status='active')
+        
+        # 詳細診断モードの場合、初期成功率を50%に設定
+        if session.mode == 'detailed':
+            session.success_probability = 50
+            session.save()
+            logger.info(f"詳細診断セッション開始: Session {session.id}, 初期成功率=50%")
+        
         logger.info(f"Session started: {session.id}, mode={session.mode}, user={request.user.username}")
         return Response(SessionSerializer(session).data, status=status.HTTP_201_CREATED)
     logger.warning(f"Session start validation failed: {serializer.errors}")
@@ -249,6 +257,38 @@ def chat_session(request):
             sequence=sequence + 1
         )
         
+        # 詳細診断モードかつ企業情報がある場合、成功率を分析・更新
+        success_probability = session.success_probability
+        success_delta = 0
+        analysis_reason = None
+        
+        if session.mode == 'detailed' and session.company:
+            try:
+                # 営業メッセージを分析
+                analysis_result = analyze_sales_message(session, conversation_history, message)
+                success_delta = analysis_result.get('success_delta', 0)
+                analysis_reason = analysis_result.get('reason', '')
+                
+                # 成功率を更新（0-100の範囲でクリップ）
+                new_probability = session.success_probability + success_delta
+                success_probability = max(0, min(100, new_probability))
+                
+                # セッションの成功率を更新
+                session.success_probability = success_probability
+                session.last_analysis_reason = analysis_reason
+                session.save()
+                
+                # 営業メッセージに分析結果を保存
+                salesperson_msg.success_delta = success_delta
+                salesperson_msg.analysis_summary = analysis_reason
+                salesperson_msg.save()
+                
+                logger.info(f"成功率更新: Session {session.id}, Delta={success_delta}, New={success_probability}%")
+            except Exception as e:
+                logger.warning(f"成功率分析に失敗しました: {e}", exc_info=True)
+                # 分析に失敗した場合は成功率は変更しない
+                success_probability = session.success_probability
+        
         # 最新の会話履歴を取得
         all_messages = list(session.messages.all().order_by('sequence'))
         conversation = [
@@ -260,10 +300,20 @@ def chat_session(request):
             for msg in all_messages
         ]
         
-        return Response({
+        # レスポンスデータを構築
+        response_data = {
             "session_id": str(session_id),
             "conversation": conversation
-        }, status=status.HTTP_200_OK)
+        }
+        
+        # 詳細診断モードの場合、成功率情報を追加
+        if session.mode == 'detailed':
+            response_data["success_probability"] = success_probability
+            response_data["success_delta"] = success_delta
+            if analysis_reason:
+                response_data["analysis_reason"] = analysis_reason
+        
+        return Response(response_data, status=status.HTTP_200_OK)
     except Exception as e:
         logger.error(f"Failed to generate customer response: {e}", exc_info=True)
         raise OpenAIAPIError(f"AI顧客の応答生成に失敗しました: {str(e)}")
